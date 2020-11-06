@@ -1,0 +1,89 @@
+---
+title: "hw_7"
+author: "Iastre"
+date: "17 09 2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=1)
+```
+
+
+Посмотрим на таблицу
+```{r}
+library(readxl)
+library(tidyverse)
+df <- read_xlsx("Ювелирный магазин, данные.xlsx")
+df
+```
+
+```{r}
+col = factor(df$Variant, labels=c("A","B"))
+ggplot(df, aes(y=`cnt(addToCart)`, x=date, color=col)) + 
+  geom_point(aes(size=`sum(addToCartItems)`)) +
+  geom_smooth(se=FALSE, method="loess") + 
+  scale_size_continuous(breaks = sort(as.numeric(c(25000,50000,100000,150000,200000, 250000)))) + 
+  labs(y="Число товаров в корзине",
+       x = "Дата",
+       title = "Продаваемость на двух вариантах магазина за месяц",
+       color = "Вариант интерфейса",
+       size = "Сумма заказа в корзине") 
+```
+```{r}
+A <- df$`sum(addToCartItems)`[df$Variant != 90]
+B <- df$`sum(addToCartItems)`[df$Variant == 90]
+suc.A <- c()
+suc.B <- c()
+std_A <- sd(A)
+std_B <- sd(B)
+for (x in 1:(length(df$`sum(addToCartItems)`)/2)){
+  if ((A[x] < mean(A) + 3 * std_A) & (B[x] < mean(B) + 3 * std_B)){
+  if ((A[x] > B[x]) & (A[x] - B[x] > A[x] * 0.05)){
+    suc.A <- c(suc.A, 1) 
+    suc.B <- c(suc.B, 0)
+  } else if ((B[x] > A[x]) & (B[x] - A[x] > B[x] * 0.05)){
+      suc.A <- c(suc.A, 0) 
+      suc.B <- c(suc.B, 1)
+    } else {
+      suc.A <- c(suc.A, 0) 
+      suc.B <- c(suc.B, 0)
+    }
+  }
+}
+sum.suc.A <- sum(suc.A)
+sum.suc.B <- sum(suc.B)
+len_A <- length(A)
+len_B <- length(B)
+prop.test(c(sum.suc.A,sum.suc.B), c(len_A, len_B), alternative="greater")
+```
+
+Пусть 
+```{r}
+N <- 1000
+
+conv_A <- mean(suc.A)
+conv_B <- mean(suc.B)
+p <- conv_B - conv_A
+cat("разница между выборками равна :", p, "\n")
+
+differences <- rep(NA, N)
+for (i in 1:N){
+  s1 <- sample(suc.A, replace = TRUE)
+  s2 <- sample(suc.B, replace = TRUE)
+  p1 <- mean(s1)
+  p2 <- mean(s2)
+  dif <- p2 -p1
+  differences[i] <- dif
+}
+head(differences)
+dif2 <- differences - mean(differences)
+dif_df2 <- data.frame(dif2)
+ggplot(dif_df2, aes(x=dif2)) + geom_histogram(fill = "lightblue", color="navy") + geom_vline(xintercept = p, color = "red", lty=2)
+```
+
+```{r}
+conv_A
+```
+
